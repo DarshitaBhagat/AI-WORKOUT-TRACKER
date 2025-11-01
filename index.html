@@ -1,15 +1,10 @@
-:root {
-  --mint-green: #98FF98;
-  --lavender: #E6E6FA;
-  --baby-pink: #FFB6C1;
-  --white: #FFFFFF;
-}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bicep Curl Counter</title>
+  <title>Bicep Curl Counter 💪</title>
+
   <style>
     :root {
       --mint-green: #98FF98;
@@ -19,34 +14,55 @@
     }
 
     body {
-      background-color: var(--lavender);
-      color: var(--white);
-      font-family: "Poppins", sans-serif;
-      text-align: center;
       margin: 0;
-      padding: 0;
+      background-color: var(--lavender);
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
     }
 
     h1 {
-      margin-top: 20px;
       color: var(--baby-pink);
-      text-shadow: 2px 2px var(--mint-green);
+      text-shadow: 1px 1px 3px var(--mint-green);
+      font-size: 2rem;
+      margin-bottom: 10px;
     }
 
     #output_canvas {
-      border: 5px solid var(--mint-green);
-      border-radius: 15px;
-      margin-top: 20px;
+      border: 4px solid var(--mint-green);
+      border-radius: 16px;
+      box-shadow: 0px 0px 15px rgba(152, 255, 152, 0.4);
     }
 
     .stats {
+      margin-top: 20px;
       background-color: var(--baby-pink);
+      color: var(--white);
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 1.2rem;
+      box-shadow: 0px 0px 10px rgba(255, 182, 193, 0.5);
+    }
+
+    button {
+      background-color: var(--mint-green);
+      color: #333;
+      font-weight: 600;
+      border: none;
       border-radius: 10px;
-      display: inline-block;
       padding: 10px 20px;
       margin-top: 15px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: var(--baby-pink);
       color: var(--white);
-      font-size: 1.5em;
     }
   </style>
 </head>
@@ -54,20 +70,28 @@
   <h1>Pose-based Bicep Curl Counter 💪</h1>
   <video id="input_video" style="display:none"></video>
   <canvas id="output_canvas" width="640" height="480"></canvas>
+
   <div class="stats">
     Reps: <span id="repCount">0</span> | Stage: <span id="stage">-</span>
   </div>
 
+  <button id="startButton">Start Camera</button>
+
+  <!-- MediaPipe Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+
   <script>
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
+    const repCount = document.getElementById('repCount');
+    const stageDisplay = document.getElementById('stage');
 
-    let stage = null;
     let counter = 0;
+    let stage = null;
+    let camera = null;
 
     function calculateAngle(a, b, c) {
       const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
@@ -88,17 +112,17 @@
         const wrist = lm[15];
         const angle = calculateAngle(shoulder, elbow, wrist);
 
-        // stage logic
+        // Rep counting logic
         if (angle > 160) stage = "down";
         if (angle < 30 && stage === "down") {
           stage = "up";
           counter++;
-          document.getElementById("repCount").textContent = counter;
+          repCount.textContent = counter;
         }
-        document.getElementById("stage").textContent = stage;
+        stageDisplay.textContent = stage || "-";
 
-        // draw landmarks
-        window.drawConnectors(canvasCtx, lm, window.POSE_CONNECTIONS, { color: "#FFB6C1", lineWidth: 4 });
+        // Draw landmarks
+        window.drawConnectors(canvasCtx, lm, window.POSE_CONNECTIONS, { color: "#FFB6C1", lineWidth: 3 });
         window.drawLandmarks(canvasCtx, lm, { color: "#98FF98", lineWidth: 2 });
       }
       canvasCtx.restore();
@@ -115,14 +139,18 @@
     });
     pose.onResults(onResults);
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await pose.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480,
+    document.getElementById('startButton').addEventListener('click', async () => {
+      if (!camera) {
+        camera = new Camera(videoElement, {
+          onFrame: async () => {
+            await pose.send({ image: videoElement });
+          },
+          width: 640,
+          height: 480,
+        });
+      }
+      camera.start();
     });
-    camera.start();
   </script>
 </body>
 </html>
