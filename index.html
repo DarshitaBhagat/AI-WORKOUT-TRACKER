@@ -1,0 +1,128 @@
+:root {
+  --mint-green: #98FF98;
+  --lavender: #E6E6FA;
+  --baby-pink: #FFB6C1;
+  --white: #FFFFFF;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bicep Curl Counter</title>
+  <style>
+    :root {
+      --mint-green: #98FF98;
+      --lavender: #E6E6FA;
+      --baby-pink: #FFB6C1;
+      --white: #FFFFFF;
+    }
+
+    body {
+      background-color: var(--lavender);
+      color: var(--white);
+      font-family: "Poppins", sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      margin-top: 20px;
+      color: var(--baby-pink);
+      text-shadow: 2px 2px var(--mint-green);
+    }
+
+    #output_canvas {
+      border: 5px solid var(--mint-green);
+      border-radius: 15px;
+      margin-top: 20px;
+    }
+
+    .stats {
+      background-color: var(--baby-pink);
+      border-radius: 10px;
+      display: inline-block;
+      padding: 10px 20px;
+      margin-top: 15px;
+      color: var(--white);
+      font-size: 1.5em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pose-based Bicep Curl Counter 💪</h1>
+  <video id="input_video" style="display:none"></video>
+  <canvas id="output_canvas" width="640" height="480"></canvas>
+  <div class="stats">
+    Reps: <span id="repCount">0</span> | Stage: <span id="stage">-</span>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+  <script>
+    const videoElement = document.getElementById('input_video');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    let stage = null;
+    let counter = 0;
+
+    function calculateAngle(a, b, c) {
+      const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+      let angle = Math.abs(radians * 180.0 / Math.PI);
+      if (angle > 180.0) angle = 360 - angle;
+      return angle;
+    }
+
+    function onResults(results) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.poseLandmarks) {
+        const lm = results.poseLandmarks;
+        const shoulder = lm[11];
+        const elbow = lm[13];
+        const wrist = lm[15];
+        const angle = calculateAngle(shoulder, elbow, wrist);
+
+        // stage logic
+        if (angle > 160) stage = "down";
+        if (angle < 30 && stage === "down") {
+          stage = "up";
+          counter++;
+          document.getElementById("repCount").textContent = counter;
+        }
+        document.getElementById("stage").textContent = stage;
+
+        // draw landmarks
+        window.drawConnectors(canvasCtx, lm, window.POSE_CONNECTIONS, { color: "#FFB6C1", lineWidth: 4 });
+        window.drawLandmarks(canvasCtx, lm, { color: "#98FF98", lineWidth: 2 });
+      }
+      canvasCtx.restore();
+    }
+
+    const pose = new Pose.Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+    });
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    pose.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await pose.send({ image: videoElement });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start();
+  </script>
+</body>
+</html>
